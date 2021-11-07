@@ -19,6 +19,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union
 from datetime import datetime, timedelta
+from urlextract import URLExtract
+from urllib.parse import urlparse
 
 EPOCH = datetime(1970, 1, 1)
 
@@ -148,3 +150,41 @@ class FloodModerator(Moderator):
 
     def declare_raid(self):
         self.last_raid = datetime.now()
+
+
+class LinkModerator(Moderator):
+    def __init__(
+            self,
+            message: str,
+            decision: ModerationDecision,
+            timeout_duration: Union[None, int],
+            authorized_urls: [str]
+    ):
+        super().__init__(message, decision, timeout_duration)
+        self.authorized_urls = authorized_urls
+
+    def get_name(self) -> str:
+        return 'Link'
+
+    def vote(self, msg: str, author: str) -> ModerationDecision:
+        url_extractor = URLExtract()
+        links = url_extractor.find_urls(msg)
+
+        if len(links) == 0:
+            return ModerationDecision.ABSTAIN
+
+        if not self.are_urls_authorized(links):
+            return self.decision
+
+        return ModerationDecision.ABSTAIN
+
+    @staticmethod
+    def are_urls_authorized(links: [str]) -> bool:
+        for link in links:
+            if not link.startswith('http://') or link.startswith('https://'):
+                link = 'http://%s' % link
+
+            result = urlparse(link)
+            # TODO: check with authorized_urls and the "*" wildcard
+
+        return True
